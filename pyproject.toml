@@ -9,6 +9,11 @@ description = "Parser for Avidemux TinyPY project scripts"
 requires-python = ">=3.10"
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/ferrous-lux/parse_avidemux_project"
+Source = "https://github.com/ferrous-lux/parse_avidemux_project"
+BugTracker = "https://github.com/ferrous-lux/parse_avidemux_project/issues"
+
 [project.scripts]
 parse-avidemux-project = "parse_avidemux_project.cli:main"
 
