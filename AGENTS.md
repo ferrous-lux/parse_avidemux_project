@@ -52,7 +52,7 @@ from .parser import parse_project
 | Kind | Convention | Example |
 |---|---|---|
 | Functions | `snake_case` | `parse_project()`, `us_to_iso_time()` |
-| Variables | `snake_case` | `video_file`, `first_frame_pts` |
+| Variables | `snake_case` | `video_files`, `first_frame_pts` |
 | Classes | `PascalCase` | `AvidemuxProject`, `Segment` |
 | Private helpers | `_leading_underscore` | `_parse_video_file()` |
 | Modules | `snake_case` | `parser.py`, `models.py` |
@@ -105,11 +105,13 @@ All public symbols are exported from `src/parse_avidemux_project/__init__.py`.
 
 ```python
 from parse_avidemux_project import (
-    AvidemuxProject,  # dataclass: video_file, segments, markers, codecs, audio_tracks
-    Segment,          # dataclass: start, duration (+ .end property)
-    AudioTrack,       # dataclass: index, language, codec
-    parse_project,    # parse TinyPY string → AvidemuxProject
-    parse_project_file,  # parse TinyPY file → AvidemuxProject
-    us_to_iso_time,       # int → "HH:MM:SS.mmm"
+    AvidemuxProject,         # dataclass: video_files, segments, markers, codecs, audio_tracks
+    Segment,                 # dataclass: start, duration, ref_video_idx (+ .end property)
+    AudioTrack,              # dataclass: index, language, codec
+    parse_project,           # parse TinyPY string → AvidemuxProject
+    parse_project_file,      # parse TinyPY file → AvidemuxProject
+    parse_segments_csv,      # parse CSV string → AvidemuxProject
+    parse_segments_csv_file, # parse CSV file → AvidemuxProject
+    us_to_iso_time,          # int → "HH:MM:SS.mmm"
 )
 ```
