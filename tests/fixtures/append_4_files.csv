@@ -1,0 +1,6 @@
+segment_idx,ref_video_idx,video_path,offset_pts,duration_pts
+0,0,/tmp/adm_testing/1.mkv,67234,10010000
+1,1,/tmp/adm_testing/2.mkv,67234,10010000
+2,2,/tmp/adm_testing/3.mkv,67234,10010000
+3,3,/tmp/adm_testing/4.mkv,67234,10010000
+
