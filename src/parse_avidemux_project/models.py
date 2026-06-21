@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, asdict
 class Segment:
     start: int
     duration: int
+    ref_video_idx: int = 0
 
     @property
     def end(self) -> int:
@@ -20,7 +21,7 @@ class AudioTrack:
 
 @dataclass
 class AvidemuxProject:
-    video_file: str | None = None
+    video_files: list[str] = field(default_factory=list)
     segments: list[Segment] = field(default_factory=list)
     marker_a: int | None = None
     marker_b: int | None = None
@@ -32,7 +33,7 @@ class AvidemuxProject:
 
     def to_dict(self) -> dict:
         return {
-            "video_file": self.video_file,
+            "video_files": list(self.video_files),
             "segments": [asdict(s) | {"end": s.end} for s in self.segments],
             "marker_a": self.marker_a,
             "marker_b": self.marker_b,

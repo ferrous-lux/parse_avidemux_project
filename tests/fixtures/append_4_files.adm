@@ -1,0 +1,23 @@
+#PY  <- Needed to identify #
+#--automatically built--
+
+adm = Avidemux()
+if not adm.loadVideo("/tmp/adm_testing/1.mkv"):
+    raise("Cannot load /tmp/adm_testing/1.mkv")
+if not adm.appendVideo("/tmp/adm_testing/2.mkv"):
+    raise("Cannot append /tmp/adm_testing/2.mkv")
+if not adm.appendVideo("/tmp/adm_testing/3.mkv"):
+    raise("Cannot append /tmp/adm_testing/3.mkv")
+if not adm.appendVideo("/tmp/adm_testing/4.mkv"):
+    raise("Cannot append /tmp/adm_testing/4.mkv")
+adm.clearSegments()
+adm.addSegment(0, 67234, 10010000)
+adm.addSegment(1, 67234, 10010000)
+adm.addSegment(2, 67234, 10010000)
+adm.addSegment(3, 67234, 10010000)
+adm.markerA = 0
+adm.markerB = 40040000
+adm.setHDRConfig(1, 1, 1, 1, 0)
+adm.videoCodec("Copy")
+adm.audioClearTracks()
+adm.setContainer("MKV", "forceAspectRatio=False", "displayWidth=1280", "displayAspectRatio=2", "addColourInfo=False", "colMatrixCoeff=2", "colRange=0", "colTransfer=2", "colPrimaries=2")

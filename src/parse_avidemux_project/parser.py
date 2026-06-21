@@ -16,14 +16,24 @@ def parse_project(content: str) -> AvidemuxProject:
     Raises:
     ValueError: If the content cannot be parsed as a valid Avidemux project.
     """
-    video_file = _parse_video_file(content)
+    video_files = _parse_video_files(content)
     segments = _parse_segments(content)
 
-    if video_file is None and not segments:
+    if not video_files and not segments:
         raise ValueError("No Avidemux project data found in content")
 
+    if segments and not video_files:
+        raise ValueError("Segments require at least one video file (none found)")
+
+    for i, seg in enumerate(segments):
+        if seg.ref_video_idx < 0 or seg.ref_video_idx >= len(video_files):
+            raise ValueError(
+                f"Segment {i}: invalid ref_video_idx {seg.ref_video_idx} "
+                f"(expected 0..{len(video_files) - 1})"
+            )
+
     return AvidemuxProject(
-        video_file=video_file,
+        video_files=video_files,
         segments=segments,
         marker_a=_parse_marker(content, "A"),
         marker_b=_parse_marker(content, "B"),
@@ -72,7 +82,11 @@ _PATTERN_VIDEO = re.compile(
     r'if not adm\.loadVideo\("(.+?)"\):\s*raise'
 )
 
-_PATTERN_SEGMENT = re.compile(r"adm\.addSegment\(0, (\d+), (\d+)\)")
+_PATTERN_SEGMENT = re.compile(r"adm\.addSegment\((\d+), (\d+), (\d+)\)")
+
+_PATTERN_APPEND_VIDEO = re.compile(
+    r'if not adm\.appendVideo\("(.+?)"\):\s*raise'
+)
 
 _PATTERN_MARKER = re.compile(r"adm\.marker([AB])\s*=\s*(\d+)")
 
@@ -89,14 +103,21 @@ _PATTERN_AUDIO_ADD = re.compile(r"adm\.audioAddTrack\((\d+)\)")
 _PATTERN_AUDIO_CODEC = re.compile(r'adm\.audioCodec\((\d+), "(.+?)"\)')
 
 
-def _parse_video_file(content: str) -> str | None:
+def _parse_video_files(content: str) -> list[str]:
+    videos = []
     match = _PATTERN_VIDEO.search(content)
-    return match.group(1) if match else None
+    if match:
+        videos.append(match.group(1))
+    videos.extend(_PATTERN_APPEND_VIDEO.findall(content))
+    return videos
 
 
 def _parse_segments(content: str) -> list[Segment]:
     matches = _PATTERN_SEGMENT.findall(content)
-    return [Segment(start=int(start), duration=int(duration)) for start, duration in matches]
+    return [
+        Segment(ref_video_idx=int(ref), start=int(start), duration=int(duration))
+        for ref, start, duration in matches
+    ]
 
 
 def _parse_marker(content: str, marker: str) -> int | None:

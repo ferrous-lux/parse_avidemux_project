@@ -15,8 +15,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_parse_project_file_adm1():
-    project = parse_project_file(str(FIXTURES / "test-adm.py"))
-    assert project.video_file == "/tmp/test.mkv"
+    project = parse_project_file(str(FIXTURES / "single_file_example1.adm"))
+    assert project.video_files == ["/tmp/test.mkv"]
     assert len(project.segments) == 5
     assert project.marker_a == 0
     assert project.marker_b == 2597779000
@@ -33,8 +33,8 @@ def test_parse_project_file_adm1():
 
 
 def test_parse_project_file_adm2():
-    project = parse_project_file(str(FIXTURES / "test2-adm.py"))
-    assert project.video_file == "/tmp/test-video2.mkv"
+    project = parse_project_file(str(FIXTURES / "single_file_example2.adm"))
+    assert project.video_files == ["/tmp/test-video2.mkv"]
     assert len(project.segments) == 10
     assert project.marker_a == 0
     assert project.marker_b == 4905816000
@@ -69,11 +69,9 @@ def test_parse_project_empty_string():
         parse_project("")
 
 
-def test_parse_project_just_segments():
-    project = parse_project("adm.addSegment(0, 1000, 2000)")
-    assert project.video_file is None
-    assert len(project.segments) == 1
-    assert project.segments[0] == Segment(start=1000, duration=2000)
+def test_parse_project_just_segments_errors():
+    with pytest.raises(ValueError, match="Segments require at least one video file"):
+        parse_project("adm.addSegment(0, 1000, 2000)")
 
 
 def test_parse_project_just_video():
@@ -83,7 +81,7 @@ def test_parse_project_just_video():
         "    raise\n"
     )
     project = parse_project(content)
-    assert project.video_file == "/path/to/video.mkv"
+    assert project.video_files == ["/path/to/video.mkv"]
     assert len(project.segments) == 0
 
 
@@ -95,15 +93,25 @@ def test_parse_project_no_segments():
         "adm.markerA = 0\n"
     )
     project = parse_project(content)
-    assert project.video_file == "/path/to/video.mkv"
+    assert project.video_files == ["/path/to/video.mkv"]
     assert len(project.segments) == 0
     assert project.marker_a == 0
 
 
-def test_parse_project_no_video():
-    project = parse_project("adm.addSegment(0, 1000, 2000)\nadm.addSegment(0, 5000, 3000)")
-    assert project.video_file is None
-    assert len(project.segments) == 2
+def test_parse_project_no_video_errors():
+    with pytest.raises(ValueError, match="Segments require at least one video file"):
+        parse_project("adm.addSegment(0, 1000, 2000)\nadm.addSegment(0, 5000, 3000)")
+
+
+def test_parse_project_out_of_range_ref():
+    content = (
+        "adm = Avidemux()\n"
+        'if not adm.loadVideo("/tmp/video.mkv"):\n'
+        "    raise\n"
+        "adm.addSegment(5, 1000, 2000)\n"
+    )
+    with pytest.raises(ValueError, match="invalid ref_video_idx 5"):
+        parse_project(content)
 
 
 def test_parse_project_no_hdr():
@@ -184,7 +192,7 @@ def test_us_to_iso_time_complex():
 
 def test_to_dict_shape():
     project = AvidemuxProject(
-        video_file="/path/to/video.mkv",
+        video_files=["/path/to/video.mkv"],
         segments=[Segment(start=1000, duration=2000)],
         marker_a=0,
         marker_b=5000,
@@ -195,8 +203,8 @@ def test_to_dict_shape():
         hdr_config=(1, 1, 1, 1, 0),
     )
     d = project.to_dict()
-    assert d["video_file"] == "/path/to/video.mkv"
-    assert d["segments"] == [{"start": 1000, "duration": 2000, "end": 3000}]
+    assert d["video_files"] == ["/path/to/video.mkv"]
+    assert d["segments"] == [{"start": 1000, "duration": 2000, "ref_video_idx": 0, "end": 3000}]
     assert d["marker_a"] == 0
     assert d["marker_b"] == 5000
     assert d["video_codec"] == "Copy"
@@ -208,7 +216,7 @@ def test_to_dict_shape():
 
 def test_to_dict_empty_project():
     d = AvidemuxProject().to_dict()
-    assert d["video_file"] is None
+    assert d["video_files"] == []
     assert d["segments"] == []
     assert d["marker_a"] is None
     assert d["marker_b"] is None
@@ -229,3 +237,59 @@ def test_segment_equality():
     s1 = Segment(start=1000, duration=2000)
     s2 = Segment(start=1000, duration=2000)
     assert s1 == s2
+
+
+def test_segment_ref_default():
+    seg = Segment(start=1000, duration=2000)
+    assert seg.ref_video_idx == 0
+
+
+def test_video_path_via_files():
+    project = parse_project_file(str(FIXTURES / "single_file_example1.adm"))
+    seg = project.segments[0]
+    assert project.video_files[seg.ref_video_idx] == "/tmp/test.mkv"
+
+
+def test_parse_project_file_adm3():
+    project = parse_project_file(str(FIXTURES / "append_4_files.adm"))
+    assert project.video_files == [
+        "/tmp/adm_testing/1.mkv",
+        "/tmp/adm_testing/2.mkv",
+        "/tmp/adm_testing/3.mkv",
+        "/tmp/adm_testing/4.mkv",
+    ]
+    assert len(project.segments) == 4
+    assert project.segments[0] == Segment(
+        start=67234, duration=10010000, ref_video_idx=0,
+    )
+    assert project.segments[1] == Segment(
+        start=67234, duration=10010000, ref_video_idx=1,
+    )
+    assert project.segments[3] == Segment(
+        start=67234, duration=10010000, ref_video_idx=3,
+    )
+    assert project.marker_a == 0
+    assert project.marker_b == 40040000
+    assert project.video_codec == "Copy"
+    assert project.container == "MKV"
+    assert project.hdr_config == (1, 1, 1, 1, 0)
+
+
+def test_parse_project_multiple_videos():
+    content = (
+        "adm = Avidemux()\n"
+        'if not adm.loadVideo("/tmp/1.mkv"):\n'
+        "    raise\n"
+        'if not adm.appendVideo("/tmp/2.mkv"):\n'
+        "    raise\n"
+        'if not adm.appendVideo("/tmp/3.mkv"):\n'
+        "    raise\n"
+        "adm.addSegment(0, 1000, 2000)\n"
+        "adm.addSegment(1, 3000, 4000)\n"
+        "adm.addSegment(2, 5000, 6000)\n"
+    )
+    project = parse_project(content)
+    assert project.video_files == ["/tmp/1.mkv", "/tmp/2.mkv", "/tmp/3.mkv"]
+    assert project.video_files[project.segments[0].ref_video_idx] == "/tmp/1.mkv"
+    assert project.video_files[project.segments[1].ref_video_idx] == "/tmp/2.mkv"
+    assert project.video_files[project.segments[2].ref_video_idx] == "/tmp/3.mkv"
