@@ -8,6 +8,9 @@ version = "0.2.0"
 description = "Parser for Avidemux TinyPY project scripts"
 readme = "README.md"
 license = "MIT"
+authors = [
+    {name = "Ferris Luxor", email = "ferrous_lux@hotmail.com"},
+]
 requires-python = ">=3.10"
 dependencies = []
 
